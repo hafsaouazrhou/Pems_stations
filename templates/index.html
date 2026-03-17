@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PeMSD7 – Real Traffic Stations Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%); border-bottom: 1px solid #2d3748; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    header h1 { font-size: 1.1rem; font-weight: 700; color: #63b3ed; white-space: nowrap; }
+    header h1 span { color: #f6ad55; }
+    .badge { background: #2d3748; border: 1px solid #4a5568; border-radius: 20px; padding: 3px 10px; font-size: 0.75rem; color: #a0aec0; }
+    .badge strong { color: #68d391; }
+    .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+    .controls select { background: #2d3748; border: 1px solid #4a5568; border-radius: 6px; color: #e2e8f0; padding: 5px 8px; font-size: 0.8rem; cursor: pointer; }
+    .controls label { font-size: 0.78rem; color: #a0aec0; }
+    .btn { padding: 6px 14px; border-radius: 7px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all .2s; }
+    .btn-primary { background: #3182ce; color: #fff; } .btn-primary:hover { background: #2b6cb0; }
+    .btn-success { background: #38a169; color: #fff; } .btn-success:hover { background: #2f855a; }
+    .btn-warning { background: #d69e2e; color: #fff; } .btn-warning:hover { background: #b7791f; }
+    .main { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 290px; min-width: 250px; background: #1a1f2e; border-right: 1px solid #2d3748; display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-tabs { display: flex; border-bottom: 1px solid #2d3748; }
+    .tab { flex: 1; padding: 9px; text-align: center; font-size: 0.75rem; cursor: pointer; color: #718096; border-bottom: 2px solid transparent; transition: all .2s; }
+    .tab.active { color: #63b3ed; border-bottom-color: #63b3ed; }
+    .tab-content { display: none; flex: 1; overflow-y: auto; padding: 10px; }
+    .tab-content.active { display: block; }
+    .stat-card { background: #2d3748; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+    .stat-card .label { font-size: 0.7rem; color: #a0aec0; margin-bottom: 3px; }
+    .stat-card .value { font-size: 1.3rem; font-weight: 700; color: #68d391; }
+    .section-title { font-size: 0.72rem; color: #a0aec0; font-weight: 600; margin: 10px 0 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .freeway-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #2d3748; font-size: 0.76rem; }
+    .freeway-name { color: #63b3ed; font-weight: 600; }
+    .type-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #2d3748; font-size: 0.76rem; }
+    .type-badge { padding: 2px 8px; border-radius: 12px; font-size: 0.68rem; font-weight: 700; }
+    .type-ML { background: #2b6cb0; color: #fff; } .type-OR { background: #276749; color: #fff; }
+    .type-FR { background: #744210; color: #fff; } .type-HV { background: #553c9a; color: #fff; }
+    .type-FF { background: #702459; color: #fff; } .type-CD { background: #2c5282; color: #fff; }
+    .station-item { padding: 7px; border-radius: 6px; margin-bottom: 5px; background: #2d3748; cursor: pointer; transition: background .15s; }
+    .station-item:hover { background: #3a4a63; }
+    .station-item .sid { font-size: 0.68rem; color: #a0aec0; }
+    .station-item .sname { font-size: 0.8rem; font-weight: 600; color: #e2e8f0; }
+    .station-item .smeta { font-size: 0.7rem; color: #68d391; margin-top: 2px; }
+    #map { flex: 1; background: #141820; }
+    .leaflet-popup-content-wrapper { background: #1a1f2e; color: #e2e8f0; border: 1px solid #3182ce; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+    .leaflet-popup-tip { background: #1a1f2e; }
+    .popup-title { font-size: 0.9rem; font-weight: 700; color: #63b3ed; margin-bottom: 8px; }
+    .popup-row { display: flex; justify-content: space-between; margin: 3px 0; font-size: 0.76rem; }
+    .popup-label { color: #a0aec0; } .popup-val { color: #e2e8f0; font-weight: 600; }
+    #toast { position: fixed; bottom: 20px; right: 20px; background: #2d3748; border: 1px solid #4a5568; border-radius: 10px; padding: 10px 16px; font-size: 0.8rem; color: #e2e8f0; z-index: 9999; display: none; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+    #toast.show { display: block; animation: slideIn .3s ease; }
+    @keyframes slideIn { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .legend { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 7px 10px; background: #16213e; border-top: 1px solid #2d3748; font-size: 0.7rem; color: #a0aec0; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+    .loading { text-align: center; color: #718096; padding: 16px; font-size: 0.8rem; }
+    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #1a1f2e; } ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🚦 PeMS<span>D7</span> — Vraies Stations de Trafic</h1>
+  <div class="badge">District 7 – Los Angeles &nbsp;|&nbsp; <strong id="hdr-count">…</strong> stations</div>
+  <div class="badge">📅 Données réelles Caltrans 2023</div>
+  <div class="controls">
+    <label>Autoroute:</label>
+    <select id="sel-freeway"><option value="">Toutes</option></select>
+    <label>Direction:</label>
+    <select id="sel-dir"><option value="">Toutes</option><option>N</option><option>S</option><option>E</option><option>W</option></select>
+    <label>Type:</label>
+    <select id="sel-type"><option value="">Tous</option></select>
+    <button class="btn btn-primary" onclick="fetchAndRender()">🔍 Filtrer</button>
+    <button class="btn btn-success" onclick="importCSV()">⬆ Import CSV</button>
+    <button class="btn btn-warning" onclick="clearMap()">🗑 Vider</button>
+  </div>
+</header>
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <div class="tab active" onclick="showTab('stats')">📊 Stats</div>
+      <div class="tab" onclick="showTab('list')">📋 Stations</div>
+    </div>
+    <div class="tab-content active" id="tab-stats">
+      <div class="stat-card"><div class="label">Total Stations (BDD)</div><div class="value" id="stat-total">—</div></div>
+      <div class="stat-card"><div class="label">Affichées sur la carte</div><div class="value" id="stat-displayed">—</div></div>
+      <div class="section-title">Par Type de Station</div>
+      <div id="type-list"><div class="loading">Chargement…</div></div>
+      <div class="section-title">Par Autoroute (Top 15)</div>
+      <div id="freeway-list"><div class="loading">Chargement…</div></div>
+    </div>
+    <div class="tab-content" id="tab-list">
+      <div id="station-list"><div class="loading">Appliquer un filtre pour voir la liste.</div></div>
+    </div>
+    <div class="legend">
+      <span>Type:</span>
+      <span><span class="legend-dot" style="background:#3182ce"></span>ML Mainline</span>
+      <span><span class="legend-dot" style="background:#38a169"></span>OR On-Ramp</span>
+      <span><span class="legend-dot" style="background:#d69e2e"></span>FR Off-Ramp</span>
+      <span><span class="legend-dot" style="background:#805ad5"></span>HV HOV</span>
+      <span><span class="legend-dot" style="background:#e53e3e"></span>FF/CD</span>
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+<div id="toast"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+const map = L.map('map').setView([34.05, -118.25], 10);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap contributors © CARTO | Données: Caltrans PeMS 2023',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+let clusterGroup = L.markerClusterGroup({ maxClusterRadius: 40 });
+map.addLayer(clusterGroup);
+const typeColors = { ML:'#3182ce', OR:'#38a169', FR:'#d69e2e', HV:'#805ad5', FF:'#e53e3e', CD:'#e53e3e' };
+const typeLabels = { ML:'Mainline', OR:'On-Ramp', FR:'Off-Ramp', HV:'HOV Lane', FF:'Fwy-to-Fwy', CD:'Collector' };
+function typeColor(t) { return typeColors[t] || '#718096'; }
+function makeIcon(type) {
+  const color = typeColor(type);
+  return L.divIcon({ html: `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,.5);box-shadow:0 0 5px ${color}88;"></div>`, iconSize:[10,10], iconAnchor:[5,5], className:'' });
+}
+function toast(msg, d=3000) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),d); }
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===(name==='stats'?0:1)));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+let allStations = [];
+async function fetchAndRender() {
+  const freeway=document.getElementById('sel-freeway').value;
+  const dir=document.getElementById('sel-dir').value;
+  const stype=document.getElementById('sel-type').value;
+  let url='/api/stations?';
+  if(freeway) url+=`freeway=${encodeURIComponent(freeway)}&`;
+  if(dir)     url+=`direction=${dir}&`;
+  if(stype)   url+=`type=${stype}&`;
+  toast('⏳ Chargement…');
+  try {
+    const data=await fetch(url).then(r=>r.json());
+    if(data.status!=='ok'){toast('❌ '+data.message);return;}
+    allStations=data.stations;
+    renderMap(allStations); renderList(allStations);
+    document.getElementById('stat-displayed').textContent=allStations.length;
+    document.getElementById('hdr-count').textContent=allStations.length;
+    toast(`✅ ${allStations.length} stations affichées`);
+  } catch(e){toast('❌ '+e.message);}
+}
+function renderMap(stations) {
+  clusterGroup.clearLayers();
+  stations.forEach(s => {
+    const marker=L.marker([s.latitude,s.longitude],{icon:makeIcon(s.type)});
+    marker.bindPopup(`
+      <div class="popup-title">📍 ${s.name||'Station '+s.station_id}</div>
+      <div class="popup-row"><span class="popup-label">ID</span><span class="popup-val">${s.station_id}</span></div>
+      <div class="popup-row"><span class="popup-label">Autoroute</span><span class="popup-val">${s.freeway} ${s.direction}</span></div>
+      <div class="popup-row"><span class="popup-label">Type</span><span class="popup-val">${s.type} — ${s.type_desc}</span></div>
+      <div class="popup-row"><span class="popup-label">Voies</span><span class="popup-val">${s.lanes}</span></div>
+      <div class="popup-row"><span class="popup-label">Postmile</span><span class="popup-val">${s.abs_postmile}</span></div>
+      <div class="popup-row"><span class="popup-label">GPS</span><span class="popup-val">${s.latitude.toFixed(5)}, ${s.longitude.toFixed(5)}</span></div>
+    `,{minWidth:230});
+    clusterGroup.addLayer(marker);
+  });
+}
+function renderList(stations) {
+  const el=document.getElementById('station-list');
+  if(!stations.length){el.innerHTML='<div class="loading">Aucune station.</div>';return;}
+  el.innerHTML=stations.slice(0,150).map(s=>`
+    <div class="station-item" onclick="map.flyTo([${s.latitude},${s.longitude}],16,{duration:1})">
+      <div class="sid">ID: ${s.station_id}</div>
+      <div class="sname">${s.name||'—'} · ${s.freeway} ${s.direction}</div>
+      <div class="smeta"><span class="type-badge type-${s.type}">${s.type}</span> &nbsp;${s.lanes} voies · PM ${s.abs_postmile}</div>
+    </div>
+  `).join('')+(stations.length>150?`<div class="loading">+ ${stations.length-150} autres…</div>`:'');
+}
+function clearMap() {
+  clusterGroup.clearLayers(); allStations=[];
+  document.getElementById('stat-displayed').textContent='0';
+  document.getElementById('station-list').innerHTML='<div class="loading">Carte vidée.</div>';
+  toast('🗑 Carte vidée');
+}
+async function importCSV() {
+  toast('⏳ Import CSV → MongoDB…');
+  const data=await fetch('/api/import',{method:'POST'}).then(r=>r.json());
+  if(data.status==='ok'){toast(`✅ ${data.inserted} insérés, ${data.skipped} déjà existants`,4000);loadStats();fetchAndRender();}
+  else toast('❌ '+data.message);
+}
+async function loadStats() {
+  const data=await fetch('/api/stats').then(r=>r.json());
+  if(data.status!=='ok') return;
+  document.getElementById('stat-total').textContent=data.total;
+  document.getElementById('type-list').innerHTML=(data.by_type||[]).map(t=>`
+    <div class="type-row">
+      <span class="type-badge type-${t._id}">${t._id} — ${t.desc||''}</span>
+      <span style="color:#a0aec0;font-size:.75rem">${t.count} stations</span>
+    </div>`).join('');
+  document.getElementById('freeway-list').innerHTML=(data.by_freeway||[]).slice(0,15).map(f=>`
+    <div class="freeway-row">
+      <span class="freeway-name">${f._id}</span>
+      <span style="color:#a0aec0;font-size:.75rem">${f.count} stations</span>
+    </div>`).join('');
+}
+async function loadSelects() {
+  const fw=await fetch('/api/freeways').then(r=>r.json());
+  const sel=document.getElementById('sel-freeway');
+  (fw.freeways||[]).forEach(f=>{const o=document.createElement('option');o.value=o.textContent=f;sel.appendChild(o);});
+  const ty=await fetch('/api/types').then(r=>r.json());
+  const tsel=document.getElementById('sel-type');
+  const tn={ML:'ML — Mainline',OR:'OR — On-Ramp',FR:'FR — Off-Ramp',HV:'HV — HOV Lane',FF:'FF — Fwy-to-Fwy',CD:'CD — Collector'};
+  (ty.types||[]).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=tn[t]||t;tsel.appendChild(o);});
+}
+(async()=>{ await loadStats(); await loadSelects(); await fetchAndRender(); })();
+</script>
+</body>
+</html>
